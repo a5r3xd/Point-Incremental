@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Incremental Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #f0f0f0;
+    }
+    .tab-buttons {
+      display: flex;
+      margin-top: 20px;
+    }
+    .tab-buttons button {
+      margin: 0 10px;
+      padding: 10px 20px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    .tab-content {
+      display: none;
+      margin-top: 40px;
+      text-align: center;
+      width: 100%;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    #points {
+      font-size: 48px;
+      color: blue;
+      font-weight: bold;
+      margin-top: 30px;
+    }
+    #increaseBtn {
+      font-size: 32px;
+      padding: 20px 40px;
+      margin: 20px;
+      cursor: pointer;
+      border-radius: 8px;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      transition: background-color 0.3s ease;
+    }
+    #increaseBtn:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+    #increaseBtn:hover:enabled {
+      background-color: #0056b3;
+    }
+    .upgrade {
+      margin: 10px 0;
+    }
+    .upgrade button {
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+    #prestigeBtn {
+      padding: 20px 40px;
+      background-color: green;
+      color: white;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="tab-buttons">
+    <button onclick="switchTab('main')">Main</button>
+    <button onclick="switchTab('prestige')">Prestige</button>
+  </div>
+
+  <div id="main" class="tab-content active">
+    <div id="points">0</div>
+    <button id="increaseBtn">Increase Points</button>
+
+    <div class="upgrade">
+      <p>Upgrade 1: Double point gain — Cost: <span id="upgrade1Cost">10</span> points</p>
+      <button id="buyUpgrade1">Buy Upgrade 1</button>
+    </div>
+
+    <div class="upgrade">
+      <p>Upgrade 2: Reduce cooldown by 0.05s — Cost: <span id="upgrade2Cost">50</span> points</p>
+      <button id="buyUpgrade2">Buy Upgrade 2</button>
+    </div>
+  </div>
+
+  <div id="prestige" class="tab-content">
+    <p style="font-size: 24px;">Prestige Points: <span id="prestigePoints">0</span></p>
+    <button id="prestigeBtn">Prestige</button>
+    <p>Prestige resets points and all point upgrades but grants 1 prestige point.<br>Requires at least 5000 points.</p>
+  </div>
+
+  <script>
+    // Game data
+    let points = parseInt(localStorage.getItem('points')) || 0;
+    let pointMultiplier = 1;
+    let upgradeLevel1 = parseInt(localStorage.getItem('upgradeLevel1')) || 0;
+    let upgrade1Cost = 10 * Math.pow(3, upgradeLevel1);
+
+    let upgradeLevel2 = parseInt(localStorage.getItem('upgradeLevel2')) || 0;
+    let clickCooldown = Math.max(1 - 0.05 * upgradeLevel2, 0.25);
+    let upgrade2Cost = 50 * Math.pow(2, upgradeLevel2);
+
+    let prestigePoints = parseInt(localStorage.getItem('prestigePoints')) || 0;
+
+    const pointsDisplay = document.getElementById('points');
+    const increaseBtn = document.getElementById('increaseBtn');
+    const upgrade1Btn = document.getElementById('buyUpgrade1');
+    const upgrade1CostDisplay = document.getElementById('upgrade1Cost');
+    const upgrade2Btn = document.getElementById('buyUpgrade2');
+    const upgrade2CostDisplay = document.getElementById('upgrade2Cost');
+    const prestigeBtn = document.getElementById('prestigeBtn');
+    const prestigePointsDisplay = document.getElementById('prestigePoints');
+
+    let canClick = true;
+
+    function updateDisplay() {
+      pointsDisplay.textContent = points;
+      upgrade1CostDisplay.textContent = Math.round(upgrade1Cost);
+      upgrade2CostDisplay.textContent = Math.round(upgrade2Cost);
+      prestigePointsDisplay.textContent = prestigePoints;
+    }
+
+    function saveGame() {
+      localStorage.setItem('points', points);
+      localStorage.setItem('upgradeLevel1', upgradeLevel1);
+      localStorage.setItem('upgradeLevel2', upgradeLevel2);
+      localStorage.setItem('prestigePoints', prestigePoints);
+    }
+
+    increaseBtn.onclick = () => {
+      if (!canClick) return;
+
+      canClick = false;
+      points += pointMultiplier;
+      updateDisplay();
+      saveGame();
+
+      increaseBtn.disabled = true;
+      setTimeout(() => {
+        canClick = true;
+        increaseBtn.disabled = false;
+      }, clickCooldown * 1000);
+    };
+
+    upgrade1Btn.onclick = () => {
+      if (points >= upgrade1Cost) {
+        points -= upgrade1Cost;
+        upgradeLevel1++;
+        pointMultiplier = Math.pow(2, upgradeLevel1);
+        upgrade1Cost *= 3;
+        updateDisplay();
+        saveGame();
+      }
+    };
+
+    upgrade2Btn.onclick = () => {
+      if (points >= upgrade2Cost && clickCooldown > 0.25) {
+        points -= upgrade2Cost;
+        upgradeLevel2++;
+        clickCooldown = Math.max(1 - 0.05 * upgradeLevel2, 0.25);
+        upgrade2Cost *= 2;
+        updateDisplay();
+        saveGame();
+      }
+    };
+
+    prestigeBtn.onclick = () => {
+      if (points < 5000) return;
+
+      // Reset progress
+      points = 0;
+      upgradeLevel1 = 0;
+      upgradeLevel2 = 0;
+      pointMultiplier = 1;
+      upgrade1Cost = 10;
+      upgrade2Cost = 50;
+      clickCooldown = 1;
+      prestigePoints++;
+
+      updateDisplay();
+      saveGame();
+    };
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      document.getElementById(tabName).classList.add('active');
+    }
+
+    // Initial update
+    updateDisplay();
+  </script>
+</body>
+</html>
